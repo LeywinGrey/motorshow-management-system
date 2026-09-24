@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${import.meta.env.VITE_API_URL}/api`,
 });
 
 // Selalu lampirkan token JWT (jika ada) ke setiap request
@@ -15,7 +15,11 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response && err.response.status === 401 && !window.location.pathname.startsWith('/penilaian')) {
+    if (
+      err.response &&
+      err.response.status === 401 &&
+      !window.location.pathname.startsWith('/penilaian')
+    ) {
       localStorage.removeItem('ms_token');
       localStorage.removeItem('ms_user');
       window.location.href = '/login';
