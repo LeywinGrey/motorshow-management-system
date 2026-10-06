@@ -1,4 +1,5 @@
 const mysql = require('mysql2/promise');
+
 require('dotenv').config();
 
 const pool = mysql.createPool({
@@ -7,14 +8,18 @@ const pool = mysql.createPool({
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'motorshow_db',
+
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
   dateStrings: true,
-    ssl: {
-    minVersion: 'TLSv1.2',
-    rejectUnauthorized: true
-    }
+
+  ssl: process.env.DB_SSL === 'true'
+    ? {
+        minVersion: 'TLSv1.2',
+        rejectUnauthorized: true
+      }
+    : undefined
 });
 
 module.exports = pool;

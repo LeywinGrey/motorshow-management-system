@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, Bike, Pencil, Trash2, ArrowUpDown, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Plus, Search, Bike, Pencil, Trash2, ArrowUpDown } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import { Card, StatCard } from '../components/ui/Card';
 import DataTable from '../components/ui/DataTable';
@@ -9,7 +9,6 @@ import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Pagination from '../components/ui/Pagination';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { exportToExcel } from '../utils/exportExcel';
 
 const STATUS_OPTIONS = ['Tersedia', 'Dibooking', 'Test Drive', 'Terjual'];
 const emptyForm = { brand: '', model: '', year: '', color: '', price: '', status: 'Tersedia', image: null };
@@ -31,7 +30,6 @@ export default function Inventory() {
   const [form, setForm] = useState(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [error, setError] = useState('');
-  const [exporting, setExporting] = useState(false);
 
   const loadSummary = () => api.get('/motorcycles/summary').then((res) => setSummary(res.data.data)).catch(() => {});
 
@@ -46,31 +44,6 @@ export default function Inventory() {
 
   useEffect(() => { loadSummary(); }, []);
   useEffect(() => { loadMotors(1); }, [filters]);
-
-  // Export Excel: ambil seluruh data motor yang sesuai filter aktif (tidak dibatasi pagination),
-  // lalu diproses dengan fungsi vanilla JS exportToExcel (lihat src/utils/exportExcel.js)
-  const handleExportExcel = async () => {
-    setExporting(true);
-    try {
-      const params = { page: 1, limit: 1000 };
-      Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v; });
-      const res = await api.get('/motorcycles', { params });
-      const rows = res.data.data.map((m) => ({
-        'ID Motor': m.id,
-        Merek: m.brand,
-        'Tipe/Model': m.model,
-        Tahun: m.year,
-        Warna: m.color,
-        'Harga (Rp)': Number(m.price),
-        Status: m.status,
-      }));
-      exportToExcel(rows, 'inventory-motor', 'Inventory Motor');
-    } catch (err) {
-      alert('Gagal mengambil data untuk export. Coba lagi.');
-    } finally {
-      setExporting(false);
-    }
-  };
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setError(''); setModalOpen(true); };
   const openEdit = (m) => { setEditing(m); setForm({ ...m, image: null }); setError(''); setModalOpen(true); };
@@ -121,22 +94,10 @@ export default function Inventory() {
 
       <Card
         title="Daftar Motor"
-        action={(
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleExportExcel}
-              disabled={exporting}
-              className="flex items-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm px-3 py-2 rounded-lg disabled:opacity-60"
-            >
-              {exporting ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
-              Export Excel
-            </button>
-            {isAdmin && (
-              <button onClick={openCreate} className="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-700 text-white text-sm px-3 py-2 rounded-lg">
-                <Plus size={16} /> Tambah Motor
-              </button>
-            )}
-          </div>
+        action={isAdmin && (
+          <button onClick={openCreate} className="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-700 text-white text-sm px-3 py-2 rounded-lg">
+            <Plus size={16} /> Tambah Motor
+          </button>
         )}
       >
         <div className="flex flex-wrap gap-3 mb-4">
