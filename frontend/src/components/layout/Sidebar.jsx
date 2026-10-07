@@ -1,8 +1,9 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard, Bike, Users, GitBranch, CalendarClock, Star, FileBarChart, UserCog, Bike as Logo,
+  LayoutDashboard, Bike, Users, GitBranch, CalendarClock, Star, FileBarChart, UserCog,
 } from 'lucide-react';
+import BrandLogo from '../ui/BrandLogo';
 import { useAuth } from '../../context/AuthContext';
 
 const adminMenu = [
@@ -30,11 +31,9 @@ export default function Sidebar() {
   return (
     <aside className="w-64 bg-white border-r border-slate-100 h-screen sticky top-0 flex flex-col">
       <div className="flex items-center gap-2 px-5 py-5 border-b border-slate-100">
-        <div className="p-2 bg-brand-600 rounded-lg text-white">
-          <Logo size={20} />
-        </div>
+        <BrandLogo className="w-11 h-11" />
         <div>
-          <p className="font-bold text-slate-800 leading-tight text-sm">MotorShow</p>
+          <p className="font-bold text-slate-800 leading-tight text-sm">Mancung Motor</p>
           <p className="text-[11px] text-slate-400 leading-tight">Management System</p>
         </div>
       </div>
@@ -55,7 +54,7 @@ export default function Sidebar() {
         ))}
       </nav>
       <div className="px-4 py-3 border-t border-slate-100 text-[11px] text-slate-400">
-        MotorShow Management System<br />Kerja Praktik &copy; {new Date().getFullYear()}
+        Mancung Motor Management System<br />Kerja Praktik &copy; {new Date().getFullYear()}
       </div>
     </aside>
   );

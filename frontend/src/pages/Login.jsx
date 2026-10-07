@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Bike, Lock, Mail, Loader2 } from 'lucide-react';
+import { Lock, Mail, Loader2 } from 'lucide-react';
+import BrandLogo from '../components/ui/BrandLogo';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
@@ -23,10 +24,8 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-700 to-slate-900 p-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-8">
         <div className="flex flex-col items-center mb-6">
-          <div className="p-3 bg-brand-600 rounded-xl text-white mb-3">
-            <Bike size={28} />
-          </div>
-          <h1 className="text-xl font-bold text-slate-800">MotorShow</h1>
+          <BrandLogo className="w-20 h-20 mb-3" iconSize={32} />
+          <h1 className="text-xl font-bold text-slate-800">Mancung Motor</h1>
           <p className="text-sm text-slate-400">Management System</p>
         </div>
 
