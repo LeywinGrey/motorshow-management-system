@@ -57,7 +57,7 @@ export default function PublicSatisfactionForm() {
     <div className="min-h-screen bg-gradient-to-b from-brand-600 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6">
         <div className="flex flex-col items-center mb-6">
-          <BrandLogo className="w-20 h-20 mb-3" iconSize={30} />
+          <BrandLogo className="w-36 h-24 mb-3" iconSize={30} />
           <h1 className="text-lg font-bold text-slate-800 text-center">Penilaian Kepuasan Pelanggan</h1>
           <p className="text-xs text-slate-400 text-center">Mancung Motor Management System</p>
         </div>

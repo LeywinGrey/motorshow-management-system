@@ -24,7 +24,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-700 to-slate-900 p-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-8">
         <div className="flex flex-col items-center mb-6">
-          <BrandLogo className="w-20 h-20 mb-3" iconSize={32} />
+          <BrandLogo className="w-36 h-24 mb-3" iconSize={32} />
           <h1 className="text-xl font-bold text-slate-800">Mancung Motor</h1>
           <p className="text-sm text-slate-400">Management System</p>
         </div>

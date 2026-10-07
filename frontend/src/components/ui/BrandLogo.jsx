@@ -7,7 +7,7 @@ export default function BrandLogo({ className = 'w-10 h-10', iconSize = 20 }) {
   const [failed, setFailed] = useState(false);
 
   return (
-    <div className={`${className} bg-white border border-slate-200 rounded-xl flex items-center justify-center overflow-hidden p-1.5 shrink-0`}>
+    <div className={`${className} bg-white border border-slate-200 rounded-xl flex items-center justify-center overflow-hidden p-1 shrink-0`}>
       {failed ? (
         <Bike size={iconSize} className="text-red-600" />
       ) : (
