@@ -7,6 +7,7 @@ import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import Pagination from '../components/ui/Pagination';
 import { useAuth } from '../context/AuthContext';
+import { buildMotorOptions } from '../utils/motorGroups';
 import api from '../services/api';
 
 const STATUS_OPTIONS = ['Menunggu', 'Dikonfirmasi', 'Selesai', 'Dibatalkan'];
@@ -46,10 +47,13 @@ export default function Booking() {
 
   useEffect(() => {
     api.get('/customers', { params: { limit: 200 } }).then((res) => setCustomers(res.data.data)).catch(() => {});
-    api.get('/motorcycles', { params: { limit: 200 } }).then((res) => setMotors(res.data.data)).catch(() => {});
+    api.get('/motorcycles', { params: { limit: 1000 } }).then((res) => setMotors(res.data.data)).catch(() => {});
   }, []);
   useEffect(() => { if (view === 'list') loadBookings(1); }, [filters, view]);
   useEffect(() => { if (view === 'calendar') loadCalendar(); }, [calendarDate, view]);
+
+  // Dropdown motor: satu opsi per tipe (bukan per unit), unit tersedia dipilih otomatis
+  const motorOptions = buildMotorOptions(motors, { hideSold: true });
 
   const openCreate = () => { setForm(emptyForm); setError(''); setModalOpen(true); };
 
@@ -168,9 +172,14 @@ export default function Booking() {
             <option value="">Pilih Pelanggan</option>
             {customers.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>)}
           </select>
-          <select required value={form.motorcycle_id} onChange={(e) => setForm({ ...form, motorcycle_id: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
+          <select
+            required
+            value={motorOptions.find((o) => o.unitIds.includes(String(form.motorcycle_id)))?.key || ''}
+            onChange={(e) => setForm({ ...form, motorcycle_id: motorOptions.find((o) => o.key === e.target.value)?.unitId || '' })}
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"
+          >
             <option value="">Pilih Motor</option>
-            {motors.filter((m) => m.status !== 'Terjual').map((m) => <option key={m.id} value={m.id}>{m.brand} {m.model}</option>)}
+            {motorOptions.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
           </select>
           <div className="grid grid-cols-2 gap-3">
             <input required type="date" value={form.booking_date} onChange={(e) => setForm({ ...form, booking_date: e.target.value })} className="px-3 py-2 rounded-lg border border-slate-200 text-sm" />

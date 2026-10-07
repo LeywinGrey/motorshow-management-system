@@ -9,6 +9,7 @@ import Modal from '../components/ui/Modal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Pagination from '../components/ui/Pagination';
 import { useAuth } from '../context/AuthContext';
+import { buildMotorOptions } from '../utils/motorGroups';
 import api from '../services/api';
 
 const STATUS_OPTIONS = ['Lead', 'Prospek', 'Test Drive', 'Follow Up', 'Negosiasi', 'Booking', 'Terjual', 'Tidak Jadi'];
@@ -38,10 +39,13 @@ export default function Customers() {
   };
 
   useEffect(() => {
-    api.get('/motorcycles', { params: { limit: 100 } }).then((res) => setMotors(res.data.data)).catch(() => {});
+    api.get('/motorcycles', { params: { limit: 1000 } }).then((res) => setMotors(res.data.data)).catch(() => {});
     api.get('/users/sales').then((res) => setSalesList(res.data.data)).catch(() => {});
   }, []);
   useEffect(() => { loadCustomers(1); }, [filters]);
+
+  // Dropdown motor: satu opsi per tipe (bukan per unit)
+  const motorOptions = buildMotorOptions(motors);
 
   const openCreate = () => { setForm(emptyForm); setError(''); setModalOpen(true); };
 
@@ -118,9 +122,13 @@ export default function Customers() {
           <input required placeholder="Nomor HP (08xxxxxxxxxx)" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm" />
           <input type="email" placeholder="Email (opsional)" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm" />
           <textarea placeholder="Alamat" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm" rows={2} />
-          <select value={form.interested_motorcycle_id} onChange={(e) => setForm({ ...form, interested_motorcycle_id: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
+          <select
+            value={motorOptions.find((o) => o.unitIds.includes(String(form.interested_motorcycle_id)))?.key || ''}
+            onChange={(e) => setForm({ ...form, interested_motorcycle_id: motorOptions.find((o) => o.key === e.target.value)?.unitId || '' })}
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"
+          >
             <option value="">Motor yang diminati (opsional)</option>
-            {motors.map((m) => <option key={m.id} value={m.id}>{m.brand} {m.model}</option>)}
+            {motorOptions.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
           </select>
           {isAdmin && (
             <select value={form.assigned_sales_id} onChange={(e) => setForm({ ...form, assigned_sales_id: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
