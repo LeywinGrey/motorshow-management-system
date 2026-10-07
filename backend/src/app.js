@@ -20,7 +20,7 @@ const app = express();
 
 app.use(cors({
   origin: [
-    'https://motorshow-management-system-xpuj-skm0wrogf.vercel.app',
+    'https://motorshow-management-system-xpuj-fv20oqaoe.vercel.app',
     'http://localhost:5173'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
