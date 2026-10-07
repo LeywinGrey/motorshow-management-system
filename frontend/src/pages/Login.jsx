@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Bike, Lock, Mail, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -75,7 +75,7 @@ export default function Login() {
         <p className="text-center text-xs text-slate-400 mt-6">
           Khusus Admin &amp; Sales showroom. <br />
           Pelanggan silakan buka halaman{' '}
-          <a href="/penilaian" className="text-brand-600 font-medium">Penilaian Kepuasan</a>.
+          <Link to="/penilaian" className="text-brand-600 font-medium">Penilaian Kepuasan</Link>.
         </p>
       </div>
     </div>
