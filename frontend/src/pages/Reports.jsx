@@ -78,7 +78,7 @@ export default function Reports() {
               <StatCard icon={Bike} label="Total Motor" value={data.summary.total_motor} />
               <StatCard icon={Bike} label="Tersedia" value={data.summary.tersedia} color="bg-emerald-50 text-emerald-600" />
               <StatCard icon={Bike} label="Dibooking" value={data.summary.dibooking} color="bg-amber-50 text-amber-600" />
-              <StatCard icon={Bike} label="Test Drive" value={data.summary.test_drive} color="bg-blue-50 text-blue-600" />
+              <StatCard icon={Bike} label="Test Drive" value={data.summary.test_drive} color="bg-teal-50 text-teal-600" />
               <StatCard icon={Bike} label="Terjual" value={data.summary.terjual} color="bg-slate-100 text-slate-600" />
             </div>
             <DataTable columns={[{ key: 'brand', label: 'Merek' }, { key: 'total', label: 'Jumlah Unit' }]} data={data.by_brand} />

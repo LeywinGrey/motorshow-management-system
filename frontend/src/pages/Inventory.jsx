@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, Bike, Pencil, Trash2, ArrowUpDown, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Plus, Search, Bike, Pencil, Trash2, ArrowUpDown, FileSpreadsheet, FileUp, Loader2 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import { Card, StatCard } from '../components/ui/Card';
 import DataTable from '../components/ui/DataTable';
@@ -7,6 +7,7 @@ import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Pagination from '../components/ui/Pagination';
+import ImportMotorModal from '../components/inventory/ImportMotorModal';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { exportToExcel } from '../utils/exportExcel';
@@ -32,6 +33,7 @@ export default function Inventory() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const loadSummary = () => api.get('/motorcycles/summary').then((res) => setSummary(res.data.data)).catch(() => {});
 
@@ -114,7 +116,7 @@ export default function Inventory() {
           <StatCard icon={Bike} label="Total Motor" value={summary.total} />
           <StatCard icon={Bike} label="Tersedia" value={summary.tersedia} color="bg-emerald-50 text-emerald-600" />
           <StatCard icon={Bike} label="Dibooking" value={summary.dibooking} color="bg-amber-50 text-amber-600" />
-          <StatCard icon={Bike} label="Test Drive" value={summary.test_drive} color="bg-blue-50 text-blue-600" />
+          <StatCard icon={Bike} label="Test Drive" value={summary.test_drive} color="bg-teal-50 text-teal-600" />
           <StatCard icon={Bike} label="Terjual" value={summary.terjual} color="bg-slate-100 text-slate-600" />
         </div>
       )}
@@ -122,7 +124,15 @@ export default function Inventory() {
       <Card
         title="Daftar Motor"
         action={(
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={() => setImportOpen(true)}
+                className="flex items-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm px-3 py-2 rounded-lg"
+              >
+                <FileUp size={16} /> Import Excel
+              </button>
+            )}
             <button
               onClick={handleExportExcel}
               disabled={exporting}
@@ -212,6 +222,14 @@ export default function Inventory() {
           </button>
         </form>
       </Modal>
+
+      {isAdmin && (
+        <ImportMotorModal
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          onImported={() => { loadMotors(1); loadSummary(); }}
+        />
+      )}
 
       <ConfirmDialog
         open={!!deleteTarget}

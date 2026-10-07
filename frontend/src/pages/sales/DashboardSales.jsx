@@ -27,10 +27,10 @@ export default function DashboardSales() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <StatCard icon={Users} label="Total Pelanggan" value={stats.total_pelanggan} />
         <StatCard icon={Target} label="Lead" value={stats.lead} color="bg-slate-100 text-slate-600" />
-        <StatCard icon={Target} label="Prospek" value={stats.prospek} color="bg-indigo-50 text-indigo-600" />
-        <StatCard icon={CalendarClock} label="Test Drive" value={stats.test_drive} color="bg-blue-50 text-blue-600" />
+        <StatCard icon={Target} label="Prospek" value={stats.prospek} color="bg-violet-50 text-violet-600" />
+        <StatCard icon={CalendarClock} label="Test Drive" value={stats.test_drive} color="bg-teal-50 text-teal-600" />
         <StatCard icon={Bell} label="Follow Up" value={stats.follow_up} color="bg-amber-50 text-amber-600" />
-        <StatCard icon={CheckCircle2} label="Booking" value={stats.booking} color="bg-blue-50 text-blue-600" />
+        <StatCard icon={CheckCircle2} label="Booking" value={stats.booking} color="bg-teal-50 text-teal-600" />
         <StatCard icon={CheckCircle2} label="Terjual" value={stats.terjual} color="bg-emerald-50 text-emerald-600" />
         <StatCard icon={Star} label="Rata-rata Kepuasan" value={stats.rata_rata_kepuasan ? `${stats.rata_rata_kepuasan}/5` : '-'} color="bg-yellow-50 text-yellow-600" />
       </div>

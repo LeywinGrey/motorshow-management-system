@@ -6,7 +6,7 @@ import { StatCard, Card } from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import api from '../../services/api';
 
-const PIE_COLORS = ['#2563eb', '#60a5fa', '#f59e0b', '#a855f7', '#ef4444', '#10b981', '#94a3b8', '#ec4899'];
+const PIE_COLORS = ['#9c2f35', '#d98c8f', '#d9a441', '#8b6bb1', '#4a9a8e', '#6b7f99', '#c9785a', '#a8a29e'];
 
 export default function DashboardAdmin() {
   const [data, setData] = useState(null);
@@ -30,13 +30,13 @@ export default function DashboardAdmin() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         <StatCard icon={Bike} label="Total Motor" value={stats.total_motor} />
         <StatCard icon={CheckCircle2} label="Motor Tersedia" value={stats.motor_tersedia} color="bg-emerald-50 text-emerald-600" />
-        <StatCard icon={Users} label="Total Pelanggan" value={stats.total_pelanggan} color="bg-indigo-50 text-indigo-600" />
+        <StatCard icon={Users} label="Total Pelanggan" value={stats.total_pelanggan} color="bg-violet-50 text-violet-600" />
         <StatCard icon={Briefcase} label="Total Sales" value={stats.total_sales} color="bg-amber-50 text-amber-600" />
         <StatCard icon={Star} label="Rata-rata Kepuasan" value={stats.rata_rata_kepuasan ? `${stats.rata_rata_kepuasan} / 5` : '-'} color="bg-yellow-50 text-yellow-600" />
         <StatCard icon={CalendarClock} label="Total Booking" value={stats.total_booking} />
         <StatCard icon={CheckCircle2} label="Test Drive Selesai" value={stats.test_drive_selesai} color="bg-emerald-50 text-emerald-600" />
         <StatCard icon={Bike} label="Motor Dibooking" value={stats.motor_dibooking} color="bg-amber-50 text-amber-600" />
-        <StatCard icon={Bike} label="Motor Test Drive" value={stats.motor_test_drive} color="bg-blue-50 text-blue-600" />
+        <StatCard icon={Bike} label="Motor Test Drive" value={stats.motor_test_drive} color="bg-teal-50 text-teal-600" />
         <StatCard icon={Bike} label="Motor Terjual" value={stats.motor_terjual} color="bg-slate-100 text-slate-600" />
       </div>
 
@@ -47,7 +47,7 @@ export default function DashboardAdmin() {
               <XAxis dataKey="month" fontSize={12} />
               <YAxis fontSize={12} allowDecimals={false} />
               <Tooltip />
-              <Line type="monotone" dataKey="total" stroke="#2563eb" strokeWidth={2} />
+              <Line type="monotone" dataKey="total" stroke="#9c2f35" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         </Card>
@@ -71,7 +71,7 @@ export default function DashboardAdmin() {
               <XAxis dataKey="activity_type" fontSize={10} interval={0} angle={-15} textAnchor="end" height={50} />
               <YAxis fontSize={12} allowDecimals={false} />
               <Tooltip />
-              <Bar dataKey="total" fill="#60a5fa" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="total" fill="#c4676c" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Card>

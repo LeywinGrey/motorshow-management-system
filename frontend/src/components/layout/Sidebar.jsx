@@ -31,7 +31,7 @@ export default function Sidebar() {
   return (
     <aside className="w-64 bg-white border-r border-slate-100 h-screen sticky top-0 flex flex-col">
       <div className="flex items-center gap-2 px-5 py-5 border-b border-slate-100">
-        <BrandLogo className="w-16 h-12" />
+        <BrandLogo className="w-11 h-11" />
         <div>
           <p className="font-bold text-slate-800 leading-tight text-sm">Mancung Motor</p>
           <p className="text-[11px] text-slate-400 leading-tight">Management System</p>
