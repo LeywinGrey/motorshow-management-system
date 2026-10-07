@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://motorshow-management-system.vercel.app/api',
+  baseURL: 'https://motorshow-management-system-gwj798jwt.vercel.app/api',
 });
 
 api.interceptors.request.use((config) => {
