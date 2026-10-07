@@ -10,18 +10,22 @@
  */
 
 export const MOTOR_STATUS_OPTIONS = ['Tersedia', 'Dibooking', 'Test Drive', 'Terjual'];
-export const MAX_IMPORT_ROWS = 500;
+export const MAX_IMPORT_ROWS = 500;   // maksimal baris di file
+export const MAX_IMPORT_UNITS = 500;  // maksimal total unit (jumlah semua Qty) per import
+export const MAX_QTY = 100;           // maksimal Qty per baris
+const MIN_YEAR = 1990;                // sama dengan validasi di backend
 
-const TEMPLATE_HEADERS = ['Merek', 'Tipe/Model', 'Tahun', 'Warna', 'Harga (Rp)', 'Status'];
+const TEMPLATE_HEADERS = ['Tipe', 'Tahun', 'Warna', 'Harga (Rp)', 'Qty', 'Status'];
 
 // Nama kolom yang diterima (sudah dinormalisasi: huruf kecil, tanpa spasi/simbol).
 // Dengan begitu file hasil "Export Excel" juga bisa langsung di-import kembali.
+// Kolom "Merek" (jika ada di file lama) diabaikan karena showroom ini khusus Honda.
 const HEADER_ALIASES = {
-  brand: ['merek', 'brand'],
-  model: ['tipemodel', 'tipe', 'model'],
+  model: ['tipe', 'tipemodel', 'model'],
   year: ['tahun', 'year'],
   color: ['warna', 'color'],
   price: ['hargarp', 'harga', 'price'],
+  qty: ['qty', 'jumlah', 'stok', 'quantity'],
   status: ['status'],
 };
 
@@ -46,25 +50,26 @@ export function downloadMotorTemplate() {
 
   const dataSheet = XLSX.utils.aoa_to_sheet([
     TEMPLATE_HEADERS,
-    ['Honda', 'Vario 160', 2025, 'Hitam', 28500000, 'Tersedia'],
-    ['Yamaha', 'NMAX 155', 2025, 'Abu-abu', 33000000, 'Tersedia'],
+    ['Beat', 2025, 'Hitam', 19500000, 3, 'Tersedia'],
+    ['Scoopy', 2025, 'Merah', 23000000, 2, 'Tersedia'],
   ]);
-  dataSheet['!cols'] = [{ wch: 14 }, { wch: 22 }, { wch: 8 }, { wch: 14 }, { wch: 16 }, { wch: 14 }];
+  dataSheet['!cols'] = [{ wch: 22 }, { wch: 8 }, { wch: 14 }, { wch: 16 }, { wch: 8 }, { wch: 14 }];
 
   const guideSheet = XLSX.utils.aoa_to_sheet([
     ['PETUNJUK PENGISIAN'],
     [''],
     ['1. Isi data pada sheet "Data Motor", satu motor per baris, mulai dari baris ke-2.'],
-    ['2. HAPUS 2 baris contoh (Vario 160 & NMAX 155) sebelum diupload, atau ganti dengan data Anda.'],
+    ['2. HAPUS 2 baris contoh (Beat & Scoopy) sebelum diupload, atau ganti dengan data Anda.'],
     ['3. Jangan mengubah nama kolom pada baris pertama.'],
-    [`4. Maksimal ${MAX_IMPORT_ROWS} baris per sekali import.`],
+    [`4. Maksimal ${MAX_IMPORT_ROWS} baris dan ${MAX_IMPORT_UNITS} unit (total Qty) per sekali import.`],
+    ['5. Motor yang sama (tipe, tahun, warna, harga) cukup ditulis 1 baris, isi jumlahnya di kolom Qty.'],
     [''],
     ['Kolom', 'Wajib?', 'Keterangan'],
-    ['Merek', 'Ya', 'Contoh: Honda, Yamaha, Suzuki, Kawasaki, Vespa'],
-    ['Tipe/Model', 'Ya', 'Contoh: Vario 160'],
-    ['Tahun', 'Ya', 'Angka 4 digit, contoh: 2025'],
+    ['Tipe', 'Ya', 'Contoh: Beat, Scoopy, Vario 160, PCX 160'],
+    ['Tahun', 'Ya', `Angka 4 digit (min. ${MIN_YEAR}), contoh: 2025`],
     ['Warna', 'Ya', 'Contoh: Hitam'],
-    ['Harga (Rp)', 'Ya', 'Angka saja tanpa titik/koma, contoh: 28500000'],
+    ['Harga (Rp)', 'Ya', 'Angka saja tanpa titik/koma, contoh: 19500000'],
+    ['Qty', 'Tidak', `Jumlah unit, angka 1-${MAX_QTY}. Kosong = 1`],
     ['Status', 'Tidak', `Salah satu dari: ${MOTOR_STATUS_OPTIONS.join(', ')}. Kosong = Tersedia`],
     [''],
     ['Catatan: foto motor tidak bisa di-import lewat Excel. Tambahkan lewat tombol Edit pada daftar motor.'],
@@ -107,7 +112,7 @@ function parsePrice(value) {
 
 /**
  * Validasi & normalisasi baris hasil baca Excel.
- * Return: [{ rowNumber, data: {brand, model, year, color, price, status}, errors: [] }]
+ * Return: [{ rowNumber, data: {model, year, color, price, qty, status}, errors: [] }]
  * rowNumber = nomor baris di Excel (baris 1 = header).
  */
 export function validateMotorRows(rawRows) {
@@ -116,18 +121,26 @@ export function validateMotorRows(rawRows) {
   return rawRows.map((raw, idx) => {
     const errors = [];
 
-    const brand = String(pick(raw, 'brand')).trim();
     const model = String(pick(raw, 'model')).trim();
     const color = String(pick(raw, 'color')).trim();
     const year = Number(pick(raw, 'year'));
     const price = parsePrice(pick(raw, 'price'));
+    const qtyRaw = pick(raw, 'qty');
     const statusRaw = String(pick(raw, 'status')).trim();
 
-    if (!brand) errors.push('Merek kosong');
-    if (!model) errors.push('Tipe/Model kosong');
+    if (!model) errors.push('Tipe kosong');
     if (!color) errors.push('Warna kosong');
-    if (!Number.isInteger(year) || year < 1950 || year > maxYear) errors.push(`Tahun tidak valid (1950-${maxYear})`);
+    if (!Number.isInteger(year) || year < MIN_YEAR || year > maxYear) errors.push(`Tahun tidak valid (${MIN_YEAR}-${maxYear})`);
     if (!Number.isFinite(price) || price <= 0) errors.push('Harga tidak valid');
+
+    let qty = 1; // kosong = 1 unit
+    if (String(qtyRaw).trim() !== '') {
+      qty = Number(qtyRaw);
+      if (!Number.isInteger(qty) || qty < 1 || qty > MAX_QTY) {
+        errors.push(`Qty harus angka 1-${MAX_QTY}`);
+        qty = 1;
+      }
+    }
 
     let status = 'Tersedia';
     if (statusRaw) {
@@ -136,6 +149,6 @@ export function validateMotorRows(rawRows) {
       else errors.push(`Status "${statusRaw}" tidak dikenal`);
     }
 
-    return { rowNumber: idx + 2, data: { brand, model, year, color, price, status }, errors };
+    return { rowNumber: idx + 2, data: { model, year, color, price, qty, status }, errors };
   });
 }

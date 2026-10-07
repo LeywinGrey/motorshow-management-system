@@ -1,12 +1,10 @@
 import React, { useRef, useState } from 'react';
 import { Download, UploadCloud, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import Modal from '../ui/Modal';
-import api from '../../services/api';
+import { createUnit, runInBatches, errorMessage } from '../../services/motorService';
 import {
-  downloadMotorTemplate, readExcelRows, validateMotorRows, MAX_IMPORT_ROWS,
+  downloadMotorTemplate, readExcelRows, validateMotorRows, MAX_IMPORT_ROWS, MAX_IMPORT_UNITS,
 } from '../../utils/importExcel';
-
-const BATCH_SIZE = 5; // jumlah request yang dikirim bersamaan
 
 function formatRupiah(n) {
   if (!Number.isFinite(n)) return '-';
@@ -25,6 +23,7 @@ export default function ImportMotorModal({ open, onClose, onImported }) {
 
   const validRows = rows.filter((r) => r.errors.length === 0);
   const invalidCount = rows.length - validRows.length;
+  const validUnits = validRows.reduce((sum, r) => sum + r.data.qty, 0);
 
   const reset = () => {
     setFileName(''); setRows([]); setReadError(''); setProgress(0); setResult(null);
@@ -45,7 +44,13 @@ export default function ImportMotorModal({ open, onClose, onImported }) {
       const raw = await readExcelRows(file);
       if (raw.length === 0) { setReadError('File kosong atau tidak ada data pada baris ke-2 dan seterusnya.'); return; }
       if (raw.length > MAX_IMPORT_ROWS) { setReadError(`Maksimal ${MAX_IMPORT_ROWS} baris per import. File Anda berisi ${raw.length} baris.`); return; }
-      setRows(validateMotorRows(raw));
+      const validated = validateMotorRows(raw);
+      const totalUnits = validated.filter((r) => r.errors.length === 0).reduce((sum, r) => sum + r.data.qty, 0);
+      if (totalUnits > MAX_IMPORT_UNITS) {
+        setReadError(`Total unit (jumlah Qty) maksimal ${MAX_IMPORT_UNITS} per import. File Anda berisi ${totalUnits} unit.`);
+        return;
+      }
+      setRows(validated);
     } catch (err) {
       setReadError(err.message);
     }
@@ -55,23 +60,25 @@ export default function ImportMotorModal({ open, onClose, onImported }) {
     setImporting(true);
     setProgress(0);
     let success = 0;
-    const failed = [];
+    const failed = []; // [{ rowNumber, count, message }]
 
-    // Kirim ke endpoint POST /motorcycles yang sudah ada (format sama dengan form "Tambah Motor")
-    for (let i = 0; i < validRows.length; i += BATCH_SIZE) {
-      const batch = validRows.slice(i, i + BATCH_SIZE);
-      await Promise.all(batch.map(async ({ rowNumber, data }) => {
-        try {
-          const fd = new FormData();
-          ['brand', 'model', 'year', 'color', 'price', 'status'].forEach((k) => fd.append(k, data[k]));
-          await api.post('/motorcycles', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-          success += 1;
-        } catch (err) {
-          failed.push({ rowNumber, message: err.response?.data?.message || 'Gagal menyimpan ke server.' });
-        }
-      }));
-      setProgress(Math.min(i + BATCH_SIZE, validRows.length));
-    }
+    // Satu baris Excel dengan Qty N => N unit (N kali POST /motorcycles yang sudah ada)
+    const tasks = validRows.flatMap((row) => Array.from({ length: row.data.qty }, () => row));
+    const results = await runInBatches(
+      tasks,
+      ({ data: { qty, ...unit } }) => createUnit(unit),
+      setProgress,
+    );
+
+    const failedByRow = new Map();
+    results.forEach((res, i) => {
+      if (res.status === 'fulfilled') { success += 1; return; }
+      const { rowNumber } = tasks[i];
+      const entry = failedByRow.get(rowNumber) || { rowNumber, count: 0, message: errorMessage(res.reason) };
+      entry.count += 1;
+      failedByRow.set(rowNumber, entry);
+    });
+    failed.push(...failedByRow.values());
 
     failed.sort((a, b) => a.rowNumber - b.rowNumber);
     setResult({ success, failed });
@@ -88,13 +95,13 @@ export default function ImportMotorModal({ open, onClose, onImported }) {
               {result.failed.length === 0 ? <CheckCircle2 size={28} /> : <AlertCircle size={28} />}
             </div>
             <p className="font-semibold text-slate-800">
-              {result.success} motor berhasil diimport{result.failed.length > 0 && `, ${result.failed.length} gagal`}
+              {result.success} unit motor berhasil diimport{result.failed.length > 0 && `, ${result.failed.reduce((n, f) => n + f.count, 0)} unit gagal`}
             </p>
           </div>
           {result.failed.length > 0 && (
             <ul className="text-sm bg-brand-50 border border-brand-100 rounded-lg p-3 space-y-1 max-h-40 overflow-y-auto">
               {result.failed.map((f) => (
-                <li key={f.rowNumber} className="text-brand-700">Baris {f.rowNumber}: {f.message}</li>
+                <li key={f.rowNumber} className="text-brand-700">Baris {f.rowNumber} ({f.count} unit): {f.message}</li>
               ))}
             </ul>
           )}
@@ -141,7 +148,7 @@ export default function ImportMotorModal({ open, onClose, onImported }) {
               <span className="text-sm text-slate-600">
                 {fileName || 'Klik untuk memilih file, atau seret ke sini'}
               </span>
-              <span className="text-xs text-slate-400">.xlsx, .xls, atau .csv • maks. {MAX_IMPORT_ROWS} baris</span>
+              <span className="text-xs text-slate-400">.xlsx, .xls, atau .csv • maks. {MAX_IMPORT_ROWS} baris / {MAX_IMPORT_UNITS} unit</span>
               <input
                 ref={fileRef}
                 type="file"
@@ -159,7 +166,7 @@ export default function ImportMotorModal({ open, onClose, onImported }) {
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 <p className="text-sm font-medium text-slate-700 mr-1">3. Periksa data</p>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{rows.length} baris</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">{validRows.length} valid</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">{validRows.length} valid ({validUnits} unit)</span>
                 {invalidCount > 0 && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-brand-100 text-brand-700">{invalidCount} error (dilewati)</span>
                 )}
@@ -168,7 +175,7 @@ export default function ImportMotorModal({ open, onClose, onImported }) {
                 <table className="w-full text-xs">
                   <thead className="bg-slate-50 text-slate-500 sticky top-0">
                     <tr className="text-left">
-                      {['Baris', 'Merek', 'Tipe/Model', 'Tahun', 'Warna', 'Harga', 'Status', 'Keterangan'].map((h) => (
+                      {['Baris', 'Tipe', 'Tahun', 'Warna', 'Harga', 'Qty', 'Status', 'Keterangan'].map((h) => (
                         <th key={h} className="py-2 px-2.5 font-medium whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -177,11 +184,11 @@ export default function ImportMotorModal({ open, onClose, onImported }) {
                     {rows.map((r) => (
                       <tr key={r.rowNumber} className={`border-t border-slate-50 ${r.errors.length ? 'bg-brand-50/60' : ''}`}>
                         <td className="py-1.5 px-2.5 text-slate-400">{r.rowNumber}</td>
-                        <td className="py-1.5 px-2.5 whitespace-nowrap">{r.data.brand || '-'}</td>
                         <td className="py-1.5 px-2.5 whitespace-nowrap">{r.data.model || '-'}</td>
                         <td className="py-1.5 px-2.5">{Number.isFinite(r.data.year) ? r.data.year : '-'}</td>
                         <td className="py-1.5 px-2.5 whitespace-nowrap">{r.data.color || '-'}</td>
                         <td className="py-1.5 px-2.5 whitespace-nowrap">{formatRupiah(r.data.price)}</td>
+                        <td className="py-1.5 px-2.5 font-medium">{r.data.qty}</td>
                         <td className="py-1.5 px-2.5 whitespace-nowrap">{r.data.status}</td>
                         <td className="py-1.5 px-2.5 whitespace-nowrap">
                           {r.errors.length === 0
@@ -201,10 +208,10 @@ export default function ImportMotorModal({ open, onClose, onImported }) {
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-brand-600 transition-all"
-                  style={{ width: `${validRows.length ? (progress / validRows.length) * 100 : 0}%` }}
+                  style={{ width: `${validUnits ? (progress / validUnits) * 100 : 0}%` }}
                 />
               </div>
-              <p className="text-xs text-slate-500 mt-1 text-center">Mengimport {progress} / {validRows.length}...</p>
+              <p className="text-xs text-slate-500 mt-1 text-center">Mengimport {progress} / {validUnits} unit...</p>
             </div>
           )}
 
@@ -222,7 +229,7 @@ export default function ImportMotorModal({ open, onClose, onImported }) {
               className="flex-1 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {importing && <Loader2 size={16} className="animate-spin" />}
-              {validRows.length > 0 ? `Import ${validRows.length} Motor` : 'Import'}
+              {validUnits > 0 ? `Import ${validUnits} Unit` : 'Import'}
             </button>
           </div>
         </div>
