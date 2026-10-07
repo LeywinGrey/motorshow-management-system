@@ -178,7 +178,7 @@ export default function Booking() {
             onChange={(e) => setForm({ ...form, motorcycle_id: motorOptions.find((o) => o.key === e.target.value)?.unitId || '' })}
             className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"
           >
-            <option value="">Pilih Motor</option>
+            <option value="">Pilih Tipe Motor</option>
             {motorOptions.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
           </select>
           <div className="grid grid-cols-2 gap-3">
