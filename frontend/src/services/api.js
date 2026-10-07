@@ -1,29 +1,25 @@
 import axios from 'axios';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const api = axios.create({
-  baseURL: 'https://motorshow-management-system-gwj798jwt.vercel.app/api',
+  baseURL: `${API_URL}/api`,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('ms_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('ms_token');
 
-api.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    if (
-      err.response &&
-      err.response.status === 401 &&
-      !window.location.pathname.startsWith('/penilaian')
-    ) {
-      localStorage.removeItem('ms_token');
-      localStorage.removeItem('ms_user');
-      window.location.href = '/login';
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
-    return Promise.reject(err);
-  }
+
+    return config;
+  },
+  (error) => Promise.reject(error)
 );
 
 export default api;
