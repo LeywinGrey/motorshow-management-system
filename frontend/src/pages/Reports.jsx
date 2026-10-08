@@ -15,28 +15,30 @@ const TABS = [
 export default function Reports() {
   const [tab, setTab] = useState('inventory');
   const [filters, setFilters] = useState({ start_date: '', end_date: '' });
-  const [data, setData] = useState(null);
-  const [error, setError] = useState('');
+  // Data disimpan BERSAMA nama tab-nya. Layar hanya memakai data jika tab-nya cocok, sehingga
+  // data tab sebelumnya tidak pernah dirender dengan tampilan tab baru (penyebab halaman blank).
+  const [report, setReport] = useState({ tab: null, data: null });
+  const [failure, setFailure] = useState({ tab: null, message: '' });
+  const data = report.tab === tab ? report.data : null;
+  const error = failure.tab === tab ? failure.message : '';
+  const summary = (data && !Array.isArray(data) && data.summary) || {};
 
-  // Kosongkan data setiap tab/filter berubah, supaya data tab sebelumnya tidak dirender
-  // dengan tampilan tab baru (penyebab halaman blank). `ignore` mengabaikan respons yang terlambat.
   useEffect(() => {
-    let ignore = false;
-    setData(null);
-    setError('');
+    let ignore = false; // abaikan respons terlambat dari tab/filter sebelumnya
+    setFailure({ tab: null, message: '' });
     const params = {};
     if (filters.start_date) params.start_date = filters.start_date;
     if (filters.end_date) params.end_date = filters.end_date;
     api.get(`/reports/${tab}`, { params })
-      .then((res) => { if (!ignore) setData(res.data.data); })
-      .catch((err) => { if (!ignore) setError(err.response?.data?.message || 'Gagal memuat laporan.'); });
+      .then((res) => { if (!ignore) setReport({ tab, data: res.data.data }); })
+      .catch((err) => { if (!ignore) setFailure({ tab, message: err.response?.data?.message || 'Gagal memuat laporan.' }); });
     return () => { ignore = true; };
   }, [tab, filters]);
 
   const exportCsv = () => {
     if (!data) return;
     let rows = [];
-    if (tab === 'sales') rows = data;
+    if (tab === 'sales') rows = Array.isArray(data) ? data : [];
     else if (tab === 'test-drive') rows = data.schedule;
     else if (tab === 'satisfaction') rows = data.comments;
     else rows = data.by_brand;
@@ -84,13 +86,13 @@ export default function Reports() {
         ) : tab === 'inventory' ? (
           <>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
-              <StatCard icon={Bike} label="Total Motor" value={data.summary.total_motor} />
-              <StatCard icon={Bike} label="Tersedia" value={data.summary.tersedia} color="bg-emerald-50 text-emerald-600" />
-              <StatCard icon={Bike} label="Dibooking" value={data.summary.dibooking} color="bg-amber-50 text-amber-600" />
-              <StatCard icon={Bike} label="Test Drive" value={data.summary.test_drive} color="bg-teal-50 text-teal-600" />
-              <StatCard icon={Bike} label="Terjual" value={data.summary.terjual} color="bg-slate-100 text-slate-600" />
+              <StatCard icon={Bike} label="Total Motor" value={summary.total_motor} />
+              <StatCard icon={Bike} label="Tersedia" value={summary.tersedia} color="bg-emerald-50 text-emerald-600" />
+              <StatCard icon={Bike} label="Dibooking" value={summary.dibooking} color="bg-amber-50 text-amber-600" />
+              <StatCard icon={Bike} label="Test Drive" value={summary.test_drive} color="bg-teal-50 text-teal-600" />
+              <StatCard icon={Bike} label="Terjual" value={summary.terjual} color="bg-slate-100 text-slate-600" />
             </div>
-            <DataTable columns={[{ key: 'brand', label: 'Merek' }, { key: 'total', label: 'Jumlah Unit' }]} data={data.by_brand} />
+            <DataTable columns={[{ key: 'brand', label: 'Merek' }, { key: 'total', label: 'Jumlah Unit' }]} data={data.by_brand || []} />
           </>
         ) : tab === 'sales' ? (
           <DataTable
@@ -101,15 +103,15 @@ export default function Reports() {
               { key: 'jumlah_booking', label: 'Jumlah Booking' },
               { key: 'jumlah_terjual', label: 'Pelanggan Terjual' },
             ]}
-            data={data}
+            data={Array.isArray(data) ? data : []}
           />
         ) : tab === 'test-drive' ? (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <StatCard icon={CalendarClock} label="Total Test Drive" value={data.summary.total} />
-              <StatCard icon={CalendarClock} label="Selesai" value={data.summary.selesai} color="bg-emerald-50 text-emerald-600" />
-              <StatCard icon={CalendarClock} label="Dibatalkan" value={data.summary.dibatalkan} color="bg-red-50 text-red-600" />
-              <StatCard icon={CalendarClock} label="Menunggu/Dikonfirmasi" value={(data.summary.menunggu || 0) + (data.summary.dikonfirmasi || 0)} color="bg-amber-50 text-amber-600" />
+              <StatCard icon={CalendarClock} label="Total Test Drive" value={summary.total} />
+              <StatCard icon={CalendarClock} label="Selesai" value={summary.selesai} color="bg-emerald-50 text-emerald-600" />
+              <StatCard icon={CalendarClock} label="Dibatalkan" value={summary.dibatalkan} color="bg-red-50 text-red-600" />
+              <StatCard icon={CalendarClock} label="Menunggu/Dikonfirmasi" value={Number(summary.menunggu || 0) + Number(summary.dikonfirmasi || 0)} color="bg-amber-50 text-amber-600" />
             </div>
             <DataTable
               columns={[
@@ -119,16 +121,16 @@ export default function Reports() {
                 { key: 'booking_date', label: 'Tanggal' },
                 { key: 'status', label: 'Status' },
               ]}
-              data={data.schedule}
+              data={data.schedule || []}
             />
           </>
         ) : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <StatCard icon={Star} label="Rata-rata Keseluruhan" value={data.summary.avg_overall ? Number(data.summary.avg_overall).toFixed(2) : '-'} />
-              <StatCard icon={Star} label="Rata-rata Sales" value={data.summary.avg_sales ? Number(data.summary.avg_sales).toFixed(2) : '-'} />
-              <StatCard icon={Star} label="Rata-rata Booking" value={data.summary.avg_booking ? Number(data.summary.avg_booking).toFixed(2) : '-'} />
-              <StatCard icon={Star} label="Rata-rata Test Drive" value={data.summary.avg_test_drive ? Number(data.summary.avg_test_drive).toFixed(2) : '-'} />
+              <StatCard icon={Star} label="Rata-rata Keseluruhan" value={summary.avg_overall ? Number(summary.avg_overall).toFixed(2) : '-'} />
+              <StatCard icon={Star} label="Rata-rata Sales" value={summary.avg_sales ? Number(summary.avg_sales).toFixed(2) : '-'} />
+              <StatCard icon={Star} label="Rata-rata Booking" value={summary.avg_booking ? Number(summary.avg_booking).toFixed(2) : '-'} />
+              <StatCard icon={Star} label="Rata-rata Test Drive" value={summary.avg_test_drive ? Number(summary.avg_test_drive).toFixed(2) : '-'} />
             </div>
             <DataTable
               columns={[
@@ -137,7 +139,7 @@ export default function Reports() {
                 { key: 'overall_rating', label: 'Rating' },
                 { key: 'comment', label: 'Komentar' },
               ]}
-              data={data.comments}
+              data={data.comments || []}
             />
           </>
         )}
