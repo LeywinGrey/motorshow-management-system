@@ -16,15 +16,22 @@ export default function Reports() {
   const [tab, setTab] = useState('inventory');
   const [filters, setFilters] = useState({ start_date: '', end_date: '' });
   const [data, setData] = useState(null);
+  const [error, setError] = useState('');
 
-  const loadReport = () => {
+  // Kosongkan data setiap tab/filter berubah, supaya data tab sebelumnya tidak dirender
+  // dengan tampilan tab baru (penyebab halaman blank). `ignore` mengabaikan respons yang terlambat.
+  useEffect(() => {
+    let ignore = false;
+    setData(null);
+    setError('');
     const params = {};
     if (filters.start_date) params.start_date = filters.start_date;
     if (filters.end_date) params.end_date = filters.end_date;
-    api.get(`/reports/${tab}`, { params }).then((res) => setData(res.data.data)).catch(() => setData(null));
-  };
-
-  useEffect(() => { loadReport(); }, [tab, filters]);
+    api.get(`/reports/${tab}`, { params })
+      .then((res) => { if (!ignore) setData(res.data.data); })
+      .catch((err) => { if (!ignore) setError(err.response?.data?.message || 'Gagal memuat laporan.'); });
+    return () => { ignore = true; };
+  }, [tab, filters]);
 
   const exportCsv = () => {
     if (!data) return;
@@ -70,7 +77,9 @@ export default function Reports() {
           </div>
         )}
       >
-        {!data ? (
+        {error ? (
+          <p className="text-sm text-brand-700 bg-brand-50 px-3 py-2 rounded-lg">{error}</p>
+        ) : !data ? (
           <p className="text-slate-400">Memuat data...</p>
         ) : tab === 'inventory' ? (
           <>
