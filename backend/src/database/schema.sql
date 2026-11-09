@@ -24,15 +24,31 @@ CREATE TABLE IF NOT EXISTS users (
 -- =========================
 CREATE TABLE IF NOT EXISTS motorcycles (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  brand VARCHAR(50) NOT NULL,
-  model VARCHAR(100) NOT NULL,
-  year INT NOT NULL,
-  color VARCHAR(50) NOT NULL,
-  price DECIMAL(15,2) NOT NULL,
+  brand VARCHAR(50) NOT NULL DEFAULT 'Honda',
+  model VARCHAR(100) NOT NULL,                 -- Excel: "Nama Tipe Motor"
+  year INT NOT NULL,                           -- Excel: "Tahun"
+  color VARCHAR(50) NOT NULL,                  -- Excel: "Warna"
+  price DECIMAL(15,2) DEFAULT NULL,            -- tidak ada di Excel stok, opsional
   image VARCHAR(255) DEFAULT NULL,
   status ENUM('Tersedia','Dibooking','Test Drive','Terjual') NOT NULL DEFAULT 'Tersedia',
+  -- Kolom hasil refactor Inventory (mengikuti template STOK UNIT MM.xlsx)
+  channel VARCHAR(100) DEFAULT NULL,           -- Excel: "Channel"
+  channel_no INT DEFAULT NULL,                 -- Excel: "No." (urutan per channel, BUKAN primary key)
+  type_code VARCHAR(30) DEFAULT NULL,          -- Excel: "Tipe Motor" (mis. H1B2N2A5)
+  color_code VARCHAR(20) DEFAULT NULL,         -- Excel: "Kode Warna"
+  engine_number VARCHAR(40) DEFAULT NULL,      -- Excel: "Nomor Mesin"
+  chassis_number VARCHAR(40) DEFAULT NULL,     -- Excel: "Nomor Rangka"
+  purchase_date DATE DEFAULT NULL,             -- Excel: "Tanggal Beli"
+  display_date DATE DEFAULT NULL,              -- Excel: "Tanggal Display"
+  friction VARCHAR(100) DEFAULT NULL,          -- Excel: "Gesekan" (boleh kosong)
+  supplier VARCHAR(100) DEFAULT NULL,          -- Excel: "Supplier"
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_motorcycles_engine (engine_number),
+  UNIQUE KEY uq_motorcycles_chassis (chassis_number),
+  INDEX idx_motorcycles_channel (channel, channel_no),
+  INDEX idx_motorcycles_type_code (type_code),
+  INDEX idx_motorcycles_supplier (supplier)
 ) ENGINE=InnoDB;
 
 -- =========================

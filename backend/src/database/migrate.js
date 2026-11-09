@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const mysql = require('mysql2/promise');
 require('dotenv').config();
+const { upgradeInventory } = require('./inventory-upgrade');
 
 async function migrate() {
   const sqlPath = path.join(__dirname, 'schema.sql');
@@ -22,6 +23,8 @@ async function migrate() {
   try {
     console.log('Menjalankan migration...');
     await connection.query(sql);
+    // Database lama (tabel motorcycles sudah ada; koneksi sudah memakai DB dari schema.sql): tambahkan kolom Inventory yang belum ada
+    await upgradeInventory(connection);
     console.log('✅ Migration berhasil. Database & tabel sudah siap.');
   } catch (err) {
     console.error('❌ Migration gagal:', err.message);

@@ -1,34 +1,19 @@
 import api from './api';
 
-// Showroom khusus Honda: kolom `brand` di database wajib diisi (NOT NULL),
-// jadi dikirim otomatis dan tidak ditampilkan di form Inventory.
-export const DEFAULT_BRAND = 'Honda';
+// Satu pemanggilan = satu unit motor (satu baris di tabel motorcycles). Payload JSON, snake_case.
+export const fetchMotors = (params) => api.get('/motorcycles', { params }).then((r) => r.data);
+export const fetchMotorSummary = () => api.get('/motorcycles/summary').then((r) => r.data.data);
+export const fetchStockSummary = (params) => api.get('/motorcycles/stock-summary', { params }).then((r) => r.data.data);
+export const fetchFilterOptions = () => api.get('/motorcycles/filters').then((r) => r.data.data);
+export const fetchExportRows = (params) => api.get('/motorcycles/export', { params }).then((r) => r.data.data);
 
-const MULTIPART = { headers: { 'Content-Type': 'multipart/form-data' } };
+export const createMotor = (data) => api.post('/motorcycles', data);
+export const updateMotor = (id, data) => api.put(`/motorcycles/${id}`, data);
+export const deleteMotor = (id) => api.delete(`/motorcycles/${id}`);
 
-function toFormData(obj) {
-  const fd = new FormData();
-  Object.entries(obj).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== '') fd.append(k, v);
-  });
-  return fd;
-}
+/** dryRun=true: hanya validasi (termasuk cek duplikat di database), tidak menyimpan. */
+export const importMotors = (rows, dryRun = false) =>
+  api.post('/motorcycles/import', { rows, dryRun }).then((r) => r.data.data);
 
-// Satu pemanggilan = satu unit motor (satu baris di tabel motorcycles)
-export const createUnit = (data) => api.post('/motorcycles', toFormData({ brand: DEFAULT_BRAND, ...data }), MULTIPART);
-export const updateUnit = (id, data) => api.put(`/motorcycles/${id}`, toFormData(data), MULTIPART);
-export const deleteUnit = (id) => api.delete(`/motorcycles/${id}`);
-
-/** Jalankan worker(item) per batch (default 5 sekaligus). Return array hasil Promise.allSettled. */
-export async function runInBatches(items, worker, onProgress, size = 5) {
-  const results = [];
-  for (let i = 0; i < items.length; i += size) {
-    const settled = await Promise.allSettled(items.slice(i, i + size).map(worker));
-    results.push(...settled);
-    if (onProgress) onProgress(Math.min(i + size, items.length));
-  }
-  return results;
-}
-
-export const errorMessage = (reason, fallback = 'Gagal menyimpan ke server.') =>
-  reason?.response?.data?.message || fallback;
+export const errorMessage = (err, fallback = 'Terjadi kesalahan. Silakan coba lagi.') =>
+  err?.response?.data?.message || err?.message || fallback;

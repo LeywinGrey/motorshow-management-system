@@ -8,7 +8,9 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "migrate": "node src/database/migrate.js",
-    "seed": "node src/database/seed.js"
+    "seed": "node src/database/seed.js",
+    "migrate:inventory": "node src/database/inventory-upgrade.js",
+    "import:stok": "node src/database/import-stok.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

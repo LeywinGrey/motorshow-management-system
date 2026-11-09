@@ -1,37 +1,38 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Download, UploadCloud, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import Modal from '../ui/Modal';
-import { createUnit, runInBatches, errorMessage } from '../../services/motorService';
+import { importMotors, errorMessage } from '../../services/motorService';
 import {
-  downloadMotorTemplate, readExcelRows, validateMotorRows, MAX_IMPORT_ROWS, MAX_IMPORT_UNITS,
-} from '../../utils/importExcel';
+  readInventoryFile, downloadInventoryTemplate, INVENTORY_HEADERS, MAX_IMPORT_ROWS,
+} from '../../utils/inventoryExcel';
 
-function formatRupiah(n) {
-  if (!Number.isFinite(n)) return '-';
-  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
-}
-
+/**
+ * Import Excel (format STOK UNIT MM.xlsx):
+ * 1) file dibaca di browser  2) dry-run ke server (validasi + cek duplikat Nomor Mesin/Rangka)
+ * 3) admin meninjau hasilnya, lalu import. Baris bermasalah dilewati & dilaporkan beserta alasannya.
+ */
 export default function ImportMotorModal({ open, onClose, onImported }) {
   const fileRef = useRef(null);
   const [fileName, setFileName] = useState('');
-  const [rows, setRows] = useState([]);
+  const [rows, setRows] = useState([]);              // baris hasil baca Excel
+  const [problems, setProblems] = useState(new Map()); // row -> [alasan] dari validasi server
   const [readError, setReadError] = useState('');
+  const [checking, setChecking] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [result, setResult] = useState(null); // { success, failed: [{rowNumber, message}] }
+  const [onlyErrors, setOnlyErrors] = useState(false);
+  const [result, setResult] = useState(null);        // { inserted, failed: [...] }
 
-  const validRows = rows.filter((r) => r.errors.length === 0);
-  const invalidCount = rows.length - validRows.length;
-  const validUnits = validRows.reduce((sum, r) => sum + r.data.qty, 0);
+  const validCount = rows.length - problems.size;
+  const shownRows = useMemo(() => (onlyErrors ? rows.filter((r) => problems.has(r.row)) : rows), [rows, problems, onlyErrors]);
 
   const reset = () => {
-    setFileName(''); setRows([]); setReadError(''); setProgress(0); setResult(null);
+    setFileName(''); setRows([]); setProblems(new Map()); setReadError(''); setResult(null); setOnlyErrors(false);
     if (fileRef.current) fileRef.current.value = '';
   };
 
   const handleClose = () => {
-    if (importing) return;
+    if (importing || checking) return;
     reset();
     onClose();
   };
@@ -40,54 +41,36 @@ export default function ImportMotorModal({ open, onClose, onImported }) {
     if (!file) return;
     reset();
     setFileName(file.name);
+    setChecking(true);
     try {
-      const raw = await readExcelRows(file);
-      if (raw.length === 0) { setReadError('File kosong atau tidak ada data pada baris ke-2 dan seterusnya.'); return; }
-      if (raw.length > MAX_IMPORT_ROWS) { setReadError(`Maksimal ${MAX_IMPORT_ROWS} baris per import. File Anda berisi ${raw.length} baris.`); return; }
-      const validated = validateMotorRows(raw);
-      const totalUnits = validated.filter((r) => r.errors.length === 0).reduce((sum, r) => sum + r.data.qty, 0);
-      if (totalUnits > MAX_IMPORT_UNITS) {
-        setReadError(`Total unit (jumlah Qty) maksimal ${MAX_IMPORT_UNITS} per import. File Anda berisi ${totalUnits} unit.`);
-        return;
-      }
-      setRows(validated);
+      const { rows: parsed } = await readInventoryFile(file);
+      if (parsed.length === 0) throw new Error('Tidak ada data unit motor di bawah header.');
+      if (parsed.length > MAX_IMPORT_ROWS) throw new Error(`Maksimal ${MAX_IMPORT_ROWS} baris per import. File Anda berisi ${parsed.length} baris.`);
+      const check = await importMotors(parsed, true); // dry run
+      setRows(parsed);
+      setProblems(new Map(check.failed.map((f) => [f.row, f.reasons])));
     } catch (err) {
-      setReadError(err.message);
+      setReadError(errorMessage(err, 'Gagal membaca file.'));
+    } finally {
+      setChecking(false);
     }
   };
 
   const handleImport = async () => {
     setImporting(true);
-    setProgress(0);
-    let success = 0;
-    const failed = []; // [{ rowNumber, count, message }]
-
-    // Satu baris Excel dengan Qty N => N unit (N kali POST /motorcycles yang sudah ada)
-    const tasks = validRows.flatMap((row) => Array.from({ length: row.data.qty }, () => row));
-    const results = await runInBatches(
-      tasks,
-      ({ data: { qty, ...unit } }) => createUnit(unit),
-      setProgress,
-    );
-
-    const failedByRow = new Map();
-    results.forEach((res, i) => {
-      if (res.status === 'fulfilled') { success += 1; return; }
-      const { rowNumber } = tasks[i];
-      const entry = failedByRow.get(rowNumber) || { rowNumber, count: 0, message: errorMessage(res.reason) };
-      entry.count += 1;
-      failedByRow.set(rowNumber, entry);
-    });
-    failed.push(...failedByRow.values());
-
-    failed.sort((a, b) => a.rowNumber - b.rowNumber);
-    setResult({ success, failed });
-    setImporting(false);
-    if (success > 0) onImported();
+    try {
+      const res = await importMotors(rows, false);
+      setResult(res);
+      if (res.inserted > 0) onImported();
+    } catch (err) {
+      setReadError(errorMessage(err, 'Import gagal.'));
+    } finally {
+      setImporting(false);
+    }
   };
 
   return (
-    <Modal open={open} onClose={handleClose} title="Import Data Motor dari Excel" maxWidth="max-w-3xl">
+    <Modal open={open} onClose={handleClose} title="Import Data Motor dari Excel" maxWidth="max-w-5xl">
       {result ? (
         <div className="space-y-4">
           <div className="flex flex-col items-center text-center gap-2 py-2">
@@ -95,47 +78,53 @@ export default function ImportMotorModal({ open, onClose, onImported }) {
               {result.failed.length === 0 ? <CheckCircle2 size={28} /> : <AlertCircle size={28} />}
             </div>
             <p className="font-semibold text-slate-800">
-              {result.success} unit motor berhasil diimport{result.failed.length > 0 && `, ${result.failed.reduce((n, f) => n + f.count, 0)} unit gagal`}
+              {result.inserted} unit berhasil diimpor{result.failed.length > 0 && `, ${result.failed.length} unit gagal`}
             </p>
+            <p className="text-xs text-slate-400">Dari total {result.total} baris di file.</p>
           </div>
           {result.failed.length > 0 && (
-            <ul className="text-sm bg-brand-50 border border-brand-100 rounded-lg p-3 space-y-1 max-h-40 overflow-y-auto">
-              {result.failed.map((f) => (
-                <li key={f.rowNumber} className="text-brand-700">Baris {f.rowNumber} ({f.count} unit): {f.message}</li>
-              ))}
-            </ul>
+            <div className="border border-brand-100 rounded-lg overflow-auto max-h-64">
+              <table className="w-full text-xs">
+                <thead className="bg-brand-50 text-brand-700 sticky top-0">
+                  <tr className="text-left"><th className="py-2 px-3">Baris</th><th className="py-2 px-3">Nomor Mesin</th><th className="py-2 px-3">Alasan gagal</th></tr>
+                </thead>
+                <tbody>
+                  {result.failed.map((f) => (
+                    <tr key={f.row} className="border-t border-brand-50">
+                      <td className="py-1.5 px-3 text-slate-500">{f.row}</td>
+                      <td className="py-1.5 px-3 whitespace-nowrap">{f.engine_number || '-'}</td>
+                      <td className="py-1.5 px-3 text-brand-700">{f.reasons.join('; ')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
           <div className="flex gap-3">
-            <button onClick={reset} className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm">
-              Import File Lain
-            </button>
-            <button onClick={handleClose} className="flex-1 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm">
-              Selesai
-            </button>
+            <button onClick={reset} className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm">Import File Lain</button>
+            <button onClick={handleClose} className="flex-1 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm">Selesai</button>
           </div>
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Langkah 1: template */}
           <div className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-100 rounded-lg p-3">
             <div className="flex items-start gap-3">
               <div className="p-2 rounded-lg bg-brand-50 text-brand-600"><FileSpreadsheet size={20} /></div>
               <div>
-                <p className="text-sm font-medium text-slate-700">1. Unduh template Excel</p>
-                <p className="text-xs text-slate-400">Sudah berisi format kolom, contoh data, dan petunjuk pengisian.</p>
+                <p className="text-sm font-medium text-slate-700">1. Siapkan file sesuai format STOK UNIT MM.xlsx</p>
+                <p className="text-xs text-slate-400">{INVENTORY_HEADERS.length} kolom: {INVENTORY_HEADERS.join(', ')}. Baris judul di atas header otomatis dilewati.</p>
               </div>
             </div>
             <button
-              onClick={() => { try { downloadMotorTemplate(); } catch (err) { alert(err.message); } }}
+              onClick={() => { try { downloadInventoryTemplate(); } catch (err) { alert(err.message); } }}
               className="shrink-0 flex items-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 text-sm px-3 py-2 rounded-lg"
             >
               <Download size={15} /> Template
             </button>
           </div>
 
-          {/* Langkah 2: upload */}
           <div>
-            <p className="text-sm font-medium text-slate-700 mb-2">2. Upload file yang sudah diisi</p>
+            <p className="text-sm font-medium text-slate-700 mb-2">2. Upload file</p>
             <label
               onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
               onDragLeave={() => setDragging(false)}
@@ -144,92 +133,68 @@ export default function ImportMotorModal({ open, onClose, onImported }) {
                 dragging ? 'border-brand-500 bg-brand-50' : 'border-slate-200 hover:border-brand-200 hover:bg-slate-50'
               }`}
             >
-              <UploadCloud size={26} className="text-slate-400" />
-              <span className="text-sm text-slate-600">
-                {fileName || 'Klik untuk memilih file, atau seret ke sini'}
-              </span>
-              <span className="text-xs text-slate-400">.xlsx, .xls, atau .csv • maks. {MAX_IMPORT_ROWS} baris / {MAX_IMPORT_UNITS} unit</span>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                className="hidden"
-                onChange={(e) => handleFile(e.target.files[0])}
-              />
+              {checking ? <Loader2 size={26} className="text-brand-600 animate-spin" /> : <UploadCloud size={26} className="text-slate-400" />}
+              <span className="text-sm text-slate-600">{checking ? 'Memeriksa data...' : fileName || 'Klik untuk memilih file, atau seret ke sini'}</span>
+              <span className="text-xs text-slate-400">.xlsx, .xls, atau .csv • maks. {MAX_IMPORT_ROWS} baris</span>
+              <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" disabled={checking || importing} onChange={(e) => handleFile(e.target.files[0])} />
             </label>
             {readError && <p className="text-sm text-brand-700 bg-brand-50 px-3 py-2 rounded-lg mt-2">{readError}</p>}
           </div>
 
-          {/* Langkah 3: preview */}
           {rows.length > 0 && (
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-2">
-                <p className="text-sm font-medium text-slate-700 mr-1">3. Periksa data</p>
+                <p className="text-sm font-medium text-slate-700 mr-1">3. Periksa hasil validasi</p>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{rows.length} baris</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">{validRows.length} valid ({validUnits} unit)</span>
-                {invalidCount > 0 && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-brand-100 text-brand-700">{invalidCount} error (dilewati)</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">{validCount} valid</span>
+                {problems.size > 0 && (
+                  <>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-brand-100 text-brand-700">{problems.size} error (akan dilewati)</span>
+                    <label className="ml-auto text-xs text-slate-500 flex items-center gap-1.5 cursor-pointer">
+                      <input type="checkbox" checked={onlyErrors} onChange={(e) => setOnlyErrors(e.target.checked)} /> Hanya tampilkan error
+                    </label>
+                  </>
                 )}
               </div>
-              <div className="border border-slate-100 rounded-lg overflow-auto max-h-64">
+              <div className="border border-slate-100 rounded-lg overflow-auto max-h-72">
                 <table className="w-full text-xs">
                   <thead className="bg-slate-50 text-slate-500 sticky top-0">
                     <tr className="text-left">
-                      {['Baris', 'Tipe', 'Tahun', 'Warna', 'Harga', 'Qty', 'Status', 'Keterangan'].map((h) => (
-                        <th key={h} className="py-2 px-2.5 font-medium whitespace-nowrap">{h}</th>
-                      ))}
+                      {['Baris', ...INVENTORY_HEADERS, 'Keterangan'].map((h) => <th key={h} className="py-2 px-2.5 font-medium whitespace-nowrap">{h}</th>)}
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((r) => (
-                      <tr key={r.rowNumber} className={`border-t border-slate-50 ${r.errors.length ? 'bg-brand-50/60' : ''}`}>
-                        <td className="py-1.5 px-2.5 text-slate-400">{r.rowNumber}</td>
-                        <td className="py-1.5 px-2.5 whitespace-nowrap">{r.data.model || '-'}</td>
-                        <td className="py-1.5 px-2.5">{Number.isFinite(r.data.year) ? r.data.year : '-'}</td>
-                        <td className="py-1.5 px-2.5 whitespace-nowrap">{r.data.color || '-'}</td>
-                        <td className="py-1.5 px-2.5 whitespace-nowrap">{formatRupiah(r.data.price)}</td>
-                        <td className="py-1.5 px-2.5 font-medium">{r.data.qty}</td>
-                        <td className="py-1.5 px-2.5 whitespace-nowrap">{r.data.status}</td>
-                        <td className="py-1.5 px-2.5 whitespace-nowrap">
-                          {r.errors.length === 0
-                            ? <span className="text-emerald-600">OK</span>
-                            : <span className="text-brand-700">{r.errors.join(', ')}</span>}
-                        </td>
-                      </tr>
-                    ))}
+                    {shownRows.map((r) => {
+                      const errs = problems.get(r.row);
+                      return (
+                        <tr key={r.row} className={`border-t border-slate-50 ${errs ? 'bg-brand-50/60' : ''}`}>
+                          <td className="py-1.5 px-2.5 text-slate-400">{r.row}</td>
+                          {['channel', 'channel_no', 'type_code', 'model', 'color_code', 'color', 'year', 'engine_number', 'chassis_number', 'purchase_date', 'display_date', 'friction', 'supplier'].map((f) => (
+                            <td key={f} className="py-1.5 px-2.5 whitespace-nowrap">{r[f] || '-'}</td>
+                          ))}
+                          <td className="py-1.5 px-2.5 whitespace-nowrap">
+                            {errs ? <span className="text-brand-700">{errs.join('; ')}</span> : <span className="text-emerald-600">OK</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
           )}
 
-          {importing && (
-            <div>
-              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-brand-600 transition-all"
-                  style={{ width: `${validUnits ? (progress / validUnits) * 100 : 0}%` }}
-                />
-              </div>
-              <p className="text-xs text-slate-500 mt-1 text-center">Mengimport {progress} / {validUnits} unit...</p>
-            </div>
-          )}
-
           <div className="flex gap-3 pt-1">
-            <button
-              onClick={handleClose}
-              disabled={importing}
-              className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm disabled:opacity-50"
-            >
+            <button onClick={handleClose} disabled={importing || checking} className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm disabled:opacity-50">
               Batal
             </button>
             <button
               onClick={handleImport}
-              disabled={importing || validRows.length === 0}
+              disabled={importing || checking || validCount === 0}
               className="flex-1 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {importing && <Loader2 size={16} className="animate-spin" />}
-              {validUnits > 0 ? `Import ${validUnits} Unit` : 'Import'}
+              {validCount > 0 ? `Import ${validCount} Unit` : 'Import'}
             </button>
           </div>
         </div>
