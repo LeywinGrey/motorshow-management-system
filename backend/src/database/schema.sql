@@ -22,33 +22,40 @@ CREATE TABLE IF NOT EXISTS users (
 -- =========================
 -- TABLE: motorcycles
 -- =========================
+-- Satu baris = satu unit motor. Kolom mengikuti template Excel "STOK UNIT MM.xlsx":
+--   channel, channel_no (No.), type_code (Tipe Motor), model (Nama Tipe Motor),
+--   color_code (Kode Warna), color (Warna), year (Tahun), engine_number (Nomor Mesin),
+--   frame_number (Nomor Rangka), purchase_date (Tanggal Beli), display_date (Tanggal Display),
+--   gesekan, supplier.
+-- Untuk database yang sudah ada, kolom baru ditambahkan oleh src/database/inventoryMigration.js
+-- (otomatis dijalankan oleh `npm run migrate`).
 CREATE TABLE IF NOT EXISTS motorcycles (
   id INT AUTO_INCREMENT PRIMARY KEY,
   brand VARCHAR(50) NOT NULL DEFAULT 'Honda',
-  model VARCHAR(100) NOT NULL,                 -- Excel: "Nama Tipe Motor"
-  year INT NOT NULL,                           -- Excel: "Tahun"
-  color VARCHAR(50) NOT NULL,                  -- Excel: "Warna"
-  price DECIMAL(15,2) DEFAULT NULL,            -- tidak ada di Excel stok, opsional
+  model VARCHAR(100) NOT NULL,
+  year INT NOT NULL,
+  color VARCHAR(50) NOT NULL,
+  price DECIMAL(15,2) NULL DEFAULT NULL,
   image VARCHAR(255) DEFAULT NULL,
   status ENUM('Tersedia','Dibooking','Test Drive','Terjual') NOT NULL DEFAULT 'Tersedia',
-  -- Kolom hasil refactor Inventory (mengikuti template STOK UNIT MM.xlsx)
-  channel VARCHAR(100) DEFAULT NULL,           -- Excel: "Channel"
-  channel_no INT DEFAULT NULL,                 -- Excel: "No." (urutan per channel, BUKAN primary key)
-  type_code VARCHAR(30) DEFAULT NULL,          -- Excel: "Tipe Motor" (mis. H1B2N2A5)
-  color_code VARCHAR(20) DEFAULT NULL,         -- Excel: "Kode Warna"
-  engine_number VARCHAR(40) DEFAULT NULL,      -- Excel: "Nomor Mesin"
-  chassis_number VARCHAR(40) DEFAULT NULL,     -- Excel: "Nomor Rangka"
-  purchase_date DATE DEFAULT NULL,             -- Excel: "Tanggal Beli"
-  display_date DATE DEFAULT NULL,              -- Excel: "Tanggal Display"
-  friction VARCHAR(100) DEFAULT NULL,          -- Excel: "Gesekan" (boleh kosong)
-  supplier VARCHAR(100) DEFAULT NULL,          -- Excel: "Supplier"
+  channel VARCHAR(100) NULL,
+  channel_no INT NULL,
+  type_code VARCHAR(30) NULL,
+  color_code VARCHAR(10) NULL,
+  engine_number VARCHAR(30) NULL,
+  frame_number VARCHAR(30) NULL,
+  purchase_date DATE NULL,
+  display_date DATE NULL,
+  gesekan VARCHAR(100) NULL,
+  supplier VARCHAR(100) NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_motorcycles_engine (engine_number),
-  UNIQUE KEY uq_motorcycles_chassis (chassis_number),
+  UNIQUE INDEX uq_motorcycles_engine_number (engine_number),
+  UNIQUE INDEX uq_motorcycles_frame_number (frame_number),
   INDEX idx_motorcycles_channel (channel, channel_no),
+  INDEX idx_motorcycles_supplier (supplier),
   INDEX idx_motorcycles_type_code (type_code),
-  INDEX idx_motorcycles_supplier (supplier)
+  INDEX idx_motorcycles_year (year)
 ) ENGINE=InnoDB;
 
 -- =========================
