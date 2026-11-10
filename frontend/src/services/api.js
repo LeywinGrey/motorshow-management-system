@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-<<<<<<< HEAD
 // Produksi: memakai URL Vercel. Development lokal: .env.development mengisi VITE_API_URL=/api.
 // Jika VITE_API_URL diisi tanpa "/api" di belakangnya (mis. hanya alamat backend), "/api" ditambahkan otomatis.
 const DEFAULT_API = 'https://motorshow-management-system.vercel.app/api';
@@ -8,12 +7,6 @@ const rawBase = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
 const baseURL = rawBase ? (rawBase.endsWith('/api') ? rawBase : `${rawBase}/api`) : DEFAULT_API;
 
 const api = axios.create({ baseURL });
-=======
-const api = axios.create({
-  // Produksi: tetap memakai URL Vercel. Development lokal: .env.development mengisi VITE_API_URL=/api (lewat proxy Vite ke localhost:5000).
-  baseURL: import.meta.env.VITE_API_URL || 'https://motorshow-management-system.vercel.app/api',
-});
->>>>>>> 5db6979c58a277dd13a9ac06f4044b136424f598
 
 // Selalu lampirkan token JWT (jika ada) ke setiap request
 api.interceptors.request.use((config) => {
