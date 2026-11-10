@@ -1,8 +1,12 @@
 import axios from 'axios';
 
-const api = axios.create({
-  baseURL: 'https://motorshow-management-system.vercel.app/api',
-});
+// Produksi: memakai URL Vercel. Development lokal: .env.development mengisi VITE_API_URL=/api.
+// Jika VITE_API_URL diisi tanpa "/api" di belakangnya (mis. hanya alamat backend), "/api" ditambahkan otomatis.
+const DEFAULT_API = 'https://motorshow-management-system.vercel.app/api';
+const rawBase = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
+const baseURL = rawBase ? (rawBase.endsWith('/api') ? rawBase : `${rawBase}/api`) : DEFAULT_API;
+
+const api = axios.create({ baseURL });
 
 // Selalu lampirkan token JWT (jika ada) ke setiap request
 api.interceptors.request.use((config) => {

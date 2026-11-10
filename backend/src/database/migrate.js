@@ -5,6 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const mysql = require('mysql2/promise');
+const { upgradeInventorySchema } = require('./inventoryMigration');
 require('dotenv').config();
 
 async function migrate() {
@@ -22,6 +23,11 @@ async function migrate() {
   try {
     console.log('Menjalankan migration...');
     await connection.query(sql);
+
+    // Upgrade tabel motorcycles lama ke struktur Inventory (13 kolom Excel). Aman dijalankan berulang.
+    console.log('Memeriksa struktur tabel motorcycles (Inventory)...');
+    await upgradeInventorySchema(connection);
+
     console.log('✅ Migration berhasil. Database & tabel sudah siap.');
   } catch (err) {
     console.error('❌ Migration gagal:', err.message);

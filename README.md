@@ -26,6 +26,28 @@ motorshow-management-system/
 - Node.js v18+ dan npm
 - MySQL Server (bisa via XAMPP/Laragon/MySQL langsung) sudah berjalan di `localhost:3306`
 
+## Modul Inventory (format STOK UNIT MM.xlsx)
+
+Satu baris tabel `motorcycles` = satu unit motor, dengan 13 kolom Excel: Channel, No., Tipe Motor, Nama Tipe Motor,
+Kode Warna, Warna, Tahun, Nomor Mesin (unik), Nomor Rangka (unik), Tanggal Beli, Tanggal Display, Gesekan (boleh kosong), Supplier.
+
+**Database lama (sudah ada tabel):** jalankan `npm run migrate:inventory` di folder `backend`.
+Aman dijalankan berulang, tidak menghapus data, dan kompatibel MySQL/TiDB.
+(`npm run migrate` hanya untuk database baru; pada database yang sudah ada ia berhenti di `CREATE INDEX idx_customers_status` bawaan schema.)
+
+**Import data awal (473 unit):**
+
+```bash
+cd backend
+npm run import:stok -- --dry-run     # periksa saja, tidak menyimpan
+npm run import:stok                  # simpan (file: backend/data/STOK_UNIT_MM.xlsx)
+npm run import:stok -- "path/lain.xlsx"
+```
+
+Import juga tersedia di aplikasi: menu Inventory Motor (Admin) -> Import Excel -> pilih file -> periksa hasil -> Import.
+
+**Menjalankan lokal:** backend `npm run dev` (port 5000), frontend `npm run dev` (port 5173; `.env.development` mengarahkan API ke proxy lokal).
+
 ## 1. Setup Backend
 
 ```bash
