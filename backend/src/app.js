@@ -18,15 +18,18 @@ const reportRoutes = require('./routes/reportRoutes');
 
 const app = express();
 
+
 app.use(cors({
   origin: [
     'https://motorshow-management-system-xpuj.vercel.app',
+    'https://mancungmotor.com',
     'http://localhost:5173'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
+
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
